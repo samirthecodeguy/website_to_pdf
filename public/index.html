@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Local Web2MD app - Convert any website URL into an accurately formatted Markdown file locally.">
   <title>Web2MD — Website to Markdown Converter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,7 +39,7 @@
       <div class="glass-card main-converter-card">
         <form id="convertForm" class="convert-form" autocomplete="off" novalidate>
           <div class="input-wrapper">
-            <input type="url" id="urlInput" placeholder="https://example.com/article" required />
+            <input type="url" id="urlInput" placeholder="https://example.com/article" aria-label="Website URL to convert" required />
             <span class="input-focus-border"></span>
           </div>
           <button type="submit" id="convertSubmitBtn" class="primary-btn">
