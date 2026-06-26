@@ -1,7 +1,26 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs/promises';
 import { processUrl } from './lib/converter.js';
+
+const activeTempDirs = new Set();
+
+const cleanupTempDirs = async () => {
+  console.log('\nCleaning up temp directories...');
+  for (const dir of activeTempDirs) {
+    try {
+      await fs.rm(dir, { recursive: true, force: true });
+    } catch (e) {
+      console.error(`Failed to delete ${dir}:`, e.message);
+    }
+  }
+  process.exit(0);
+};
+
+process.on('SIGINT', cleanupTempDirs);
+process.on('SIGTERM', cleanupTempDirs);
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,9 +57,13 @@ app.post('/api/convert', async (req, res) => {
       });
     }
 
-    const { markdown, metadata } = await processUrl(url);
+    const { markdown, metadata, images, tempDir } = await processUrl(url);
 
-    res.json({ markdown, metadata });
+    if (tempDir) {
+      activeTempDirs.add(tempDir);
+    }
+
+    res.json({ markdown, metadata, images: images || [] });
   } catch (error) {
     console.error('Conversion error:', error);
     
