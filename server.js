@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs/promises';
 import { processUrl } from './lib/converter.js';
+import { listDirectory, getDrives, getDefaultDir, safeResolve } from './lib/file-browser.js';
+import * as history from './lib/history.js';
 
 const activeTempDirs = new Set();
 
@@ -88,6 +90,134 @@ app.post('/api/convert', async (req, res) => {
         message: error.message || 'An unexpected error occurred during conversion.'
       }
     });
+  }
+});
+
+// --- Phase 4 Routes ---
+
+// API Route to browse directories
+app.post('/api/browse', async (req, res) => {
+  try {
+    const { dirPath, getDrives: reqGetDrives } = req.body;
+    
+    if (reqGetDrives) {
+      const drives = await getDrives();
+      return res.json({ drives, defaultDir: getDefaultDir() });
+    }
+    
+    const targetDir = dirPath ? safeResolve('/', dirPath) : getDefaultDir();
+    const result = await listDirectory(targetDir);
+    res.json(result);
+  } catch (error) {
+    console.error('Browse error:', error);
+    res.status(400).json({
+      error: {
+        code: 'BROWSE_ERROR',
+        message: error.message
+      }
+    });
+  }
+});
+
+// API Route to save markdown and images
+app.post('/api/save', async (req, res) => {
+  try {
+    const { markdown, images, savePath, filename, url, title } = req.body;
+    
+    if (!savePath || !filename) {
+      throw new Error('Save path and filename are required');
+    }
+    
+    // Sanitize filename
+    const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    if (!safeFilename.endsWith('.md')) {
+      throw new Error('Filename must end with .md');
+    }
+    
+    // Resolve and validate save directory
+    const resolvedSavePath = safeResolve('/', savePath);
+    
+    // Check if directory exists
+    try {
+      const stat = await fs.stat(resolvedSavePath);
+      if (!stat.isDirectory()) throw new Error('Save path is not a directory');
+    } catch (e) {
+      throw new Error('Save directory does not exist or is inaccessible');
+    }
+    
+    // Create atomic write function (write to temp then rename)
+    const writeAtomically = async (targetPath, content) => {
+      const tempPath = targetPath + '.tmp.' + Date.now();
+      await fs.writeFile(tempPath, content, 'utf8');
+      await fs.rename(tempPath, targetPath);
+    };
+
+    // Save markdown file
+    const mdFilePath = path.join(resolvedSavePath, safeFilename);
+    await writeAtomically(mdFilePath, markdown);
+    
+    let savedImageCount = 0;
+    
+    // Save images
+    if (images && images.length > 0) {
+      const imagesDir = path.join(resolvedSavePath, 'images');
+      await fs.mkdir(imagesDir, { recursive: true });
+      
+      for (const img of images) {
+        if (img.tempPath) {
+          const destPath = path.join(imagesDir, img.filename);
+          // Copy from tempPath
+          try {
+            await fs.copyFile(img.tempPath, destPath);
+            savedImageCount++;
+          } catch (e) {
+            console.warn(`Failed to copy image ${img.filename}:`, e);
+          }
+        }
+      }
+    }
+    
+    // Add to history
+    const entry = await history.addEntry({
+      url,
+      title,
+      savePath: resolvedSavePath,
+      filename: safeFilename,
+      imageCount: savedImageCount
+    });
+    
+    res.json({ success: true, entry, mdFilePath });
+  } catch (error) {
+    console.error('Save error:', error);
+    res.status(500).json({
+      error: {
+        code: 'SAVE_FAILED',
+        message: error.message
+      }
+    });
+  }
+});
+
+// API Route to get history
+app.get('/api/history', async (req, res) => {
+  try {
+    const entries = await history.getAll();
+    res.json(entries);
+  } catch (error) {
+    res.status(500).json({ error: { code: 'HISTORY_ERROR', message: error.message } });
+  }
+});
+
+// API Route to delete history entry
+app.delete('/api/history/:id', async (req, res) => {
+  try {
+    const success = await history.deleteById(req.params.id);
+    if (!success) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'History entry not found' } });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: { code: 'HISTORY_ERROR', message: error.message } });
   }
 });
 
