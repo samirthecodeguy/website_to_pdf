@@ -1,73 +1,106 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Website to Markdown</title>
-  <style>
-    body { font-family: sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto; }
-    .form-group { margin-bottom: 1rem; }
-    input[type="url"] { width: 100%; padding: 0.5rem; font-size: 1rem; box-sizing: border-box; }
-    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
-    pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
-    .error { color: #d32f2f; }
-  </style>
+  <title>Web2MD — Website to Markdown Converter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/index.css">
 </head>
 <body>
-  <h1>Website to Markdown (Phase 1 Test)</h1>
-  <div class="form-group">
-    <input type="url" id="urlInput" placeholder="Enter website URL (e.g., https://example.com)" required />
-  </div>
-  <button id="convertBtn">Convert</button>
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">Web2MD</span>
+      </div>
+      <nav class="nav-links">
+        <a href="#convert" id="navConvert" class="nav-item active">Converter</a>
+        <a href="#history" id="navHistory" class="nav-item disabled">History</a>
+      </nav>
+      <button id="themeToggle" class="theme-toggle-btn" aria-label="Toggle theme">
+        <span class="sun-icon">☀️</span>
+        <span class="moon-icon">🌙</span>
+      </button>
+    </div>
+  </header>
 
-  <div id="outputContainer" style="display: none; margin-top: 2rem;">
-    <h2>Result</h2>
-    <div id="metaOutput" style="margin-bottom: 1rem; color: #555;"></div>
-    <pre id="mdOutput"></pre>
-  </div>
+  <main class="app-main">
+    <!-- View 1: Converter Home -->
+    <section id="converterView" class="view-section active">
+      <div class="hero-section">
+        <h1>Convert Any Website to Clean Markdown</h1>
+        <p>Enter a URL to scrape the webpage content, download its images locally, and get a neat Markdown preview.</p>
+      </div>
 
-  <script>
-    const btn = document.getElementById('convertBtn');
-    const input = document.getElementById('urlInput');
-    const outputContainer = document.getElementById('outputContainer');
-    const mdOutput = document.getElementById('mdOutput');
-    const metaOutput = document.getElementById('metaOutput');
+      <div class="glass-card main-converter-card">
+        <form id="convertForm" class="convert-form" autocomplete="off" novalidate>
+          <div class="input-wrapper">
+            <input type="url" id="urlInput" placeholder="https://example.com/article" required />
+            <span class="input-focus-border"></span>
+          </div>
+          <button type="submit" id="convertSubmitBtn" class="primary-btn">
+            <span class="btn-text">Convert to MD</span>
+            <span class="btn-spinner"></span>
+          </button>
+        </form>
+        <div id="errorMessage" class="error-toast" style="display: none;"></div>
+      </div>
 
-    btn.addEventListener('click', async () => {
-      const url = input.value.trim();
-      if (!url) return alert('Please enter a URL');
+      <!-- Loading State -->
+      <div id="loadingState" class="loading-state" style="display: none;">
+        <div class="progress-info">
+          <span class="progress-title">Scraping site content...</span>
+          <span class="progress-percent">Please wait</span>
+        </div>
+        <div class="shimmer-bar-container">
+          <div class="shimmer-bar"></div>
+        </div>
+      </div>
+    </section>
 
-      btn.disabled = true;
-      btn.textContent = 'Converting...';
-      outputContainer.style.display = 'none';
-      mdOutput.textContent = '';
-      metaOutput.textContent = '';
-      mdOutput.classList.remove('error');
+    <!-- View 2: Editor View -->
+    <section id="editorView" class="view-section">
+      <div class="editor-header">
+        <button id="editorBackBtn" class="icon-btn" aria-label="Go Back">
+          <span class="arrow-icon">←</span> Back
+        </button>
+        <div class="doc-meta-info">
+          <h2 id="docTitle">Document</h2>
+          <span id="docSource" class="doc-source-badge">source</span>
+        </div>
+        <button id="editorSaveBtn" class="primary-btn save-btn">
+          <span>Save Markdown</span>
+        </button>
+      </div>
 
-      try {
-        const response = await fetch('/api/convert', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
-        });
+      <div class="split-pane-container" id="splitPane">
+        <div class="pane pane-left" id="leftPane">
+          <div class="pane-header">Editor (Raw MD)</div>
+          <textarea id="markdownEditor" spellcheck="false" placeholder="Edit markdown here..."></textarea>
+        </div>
+        <div class="resizer" id="paneResizer"></div>
+        <div class="pane pane-right" id="rightPane">
+          <div class="pane-header">Preview</div>
+          <div class="preview-body markdown-body" id="markdownPreview"></div>
+        </div>
+      </div>
+    </section>
+  </main>
 
-        const data = await response.json();
+  <footer class="app-footer">
+    <div class="footer-container">
+      <span>Web2MD Local Utility v1.0.0</span>
+      <span>Secured and Optimized</span>
+    </div>
+  </footer>
 
-        if (!response.ok) {
-          throw new Error(data.error?.message || 'Failed to convert');
-        }
-
-        metaOutput.textContent = `Title: ${data.metadata.title} | Source: ${data.metadata.source}`;
-        mdOutput.textContent = data.markdown;
-      } catch (err) {
-        mdOutput.classList.add('error');
-        mdOutput.textContent = `Error: ${err.message}`;
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Convert';
-        outputContainer.style.display = 'block';
-      }
-    });
-  </script>
+  <!-- CDNs for Markdown parsing & sanitization -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+  <!-- Main application entry point -->
+  <script src="/app.js"></script>
 </body>
 </html>
