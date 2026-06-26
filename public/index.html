@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Website to Markdown</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto; }
+    .form-group { margin-bottom: 1rem; }
+    input[type="url"] { width: 100%; padding: 0.5rem; font-size: 1rem; box-sizing: border-box; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+    .error { color: #d32f2f; }
+  </style>
+</head>
+<body>
+  <h1>Website to Markdown (Phase 1 Test)</h1>
+  <div class="form-group">
+    <input type="url" id="urlInput" placeholder="Enter website URL (e.g., https://example.com)" required />
+  </div>
+  <button id="convertBtn">Convert</button>
+
+  <div id="outputContainer" style="display: none; margin-top: 2rem;">
+    <h2>Result</h2>
+    <div id="metaOutput" style="margin-bottom: 1rem; color: #555;"></div>
+    <pre id="mdOutput"></pre>
+  </div>
+
+  <script>
+    const btn = document.getElementById('convertBtn');
+    const input = document.getElementById('urlInput');
+    const outputContainer = document.getElementById('outputContainer');
+    const mdOutput = document.getElementById('mdOutput');
+    const metaOutput = document.getElementById('metaOutput');
+
+    btn.addEventListener('click', async () => {
+      const url = input.value.trim();
+      if (!url) return alert('Please enter a URL');
+
+      btn.disabled = true;
+      btn.textContent = 'Converting...';
+      outputContainer.style.display = 'none';
+      mdOutput.textContent = '';
+      metaOutput.textContent = '';
+      mdOutput.classList.remove('error');
+
+      try {
+        const response = await fetch('/api/convert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error?.message || 'Failed to convert');
+        }
+
+        metaOutput.textContent = `Title: ${data.metadata.title} | Source: ${data.metadata.source}`;
+        mdOutput.textContent = data.markdown;
+      } catch (err) {
+        mdOutput.classList.add('error');
+        mdOutput.textContent = `Error: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Convert';
+        outputContainer.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
