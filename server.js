@@ -76,7 +76,7 @@ app.post('/api/convert', async (req, res) => {
     if (error.message.includes('Invalid URL') || error.message.includes('Invalid protocol')) {
       statusCode = 400;
       errorCode = 'INVALID_URL';
-    } else if (error.message.includes('Fetch failed') || error.name === 'AbortError') {
+    } else if (error.message.toLowerCase().includes('fetch failed') || error.name === 'AbortError') {
       statusCode = 502; // Bad Gateway
       errorCode = 'FETCH_FAILED';
     } else if (error.message.includes('SSRF')) {
