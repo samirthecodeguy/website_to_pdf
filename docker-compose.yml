@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  web2md:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web2md
+    ports:
+      # Map port 3000 of the container to port 3000 of the host
+      - "3000:3000"
+    volumes:
+      # Persists application conversion history
+      - web2md_history:/home/node/.web2md
+      
+      # Bind mount for downloads. Replace './downloads' with any host directory, 
+      # e.g., '/home/samir/Downloads' or 'C:\Users\samir\Downloads'
+      - ./downloads:/home/node/downloads
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    restart: unless-stopped
+    security_opt:
+      # Security best practice: Prevent processes from gaining new privileges
+      - no-new-privileges:true
+
+volumes:
+  web2md_history:
+    name: web2md_history
